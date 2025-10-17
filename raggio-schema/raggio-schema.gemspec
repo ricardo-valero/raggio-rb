@@ -18,6 +18,4 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir.glob("lib/**/*") + %w[README.md CHANGELOG.md]
   spec.require_paths = ["lib"]
-
-  spec.add_dependency "raggio", "~> #{Raggio::Schema::VERSION.split('.')[0..1].join('.')}"
 end
