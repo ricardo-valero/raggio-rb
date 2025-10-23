@@ -12,4 +12,4 @@ group :development, :test do
   gem "standard", "~> 1.0" if RUBY_VERSION >= "3.0"
 end
 
-eval File.read("Gemfile-custom") if File.exist?("Gemfile-custom")
+eval_gemfile "Gemfile-custom" if File.exist?("Gemfile-custom")

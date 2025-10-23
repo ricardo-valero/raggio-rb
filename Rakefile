@@ -54,13 +54,13 @@ task :clean do
 end
 
 desc "Run standardrb for all gems"
-task :standard do
+task :standardrb do
   for_each_gem do |_gem|
-    Bundler.with_unbundled_env { sh "bundle exec standardrb" }
+    Bundler.with_unbundled_env { sh "bundle exec standardrb --fix" }
   end
 end
 
 desc "Run tests and linter"
-task both: [:rspec, :standard]
+task both: [:rspec, :standardrb]
 
 task default: :both

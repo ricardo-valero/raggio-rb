@@ -369,58 +369,58 @@ end
 
 describe "Literal" do
   it "validates string literals" do
-    class Status < Raggio::Schema::Base
+    status = Class.new(Raggio::Schema::Base) do
       literal %w[pending approved rejected]
     end
 
-    expect(Status.decode("pending")).to eq("pending")
-    expect(Status.decode("approved")).to eq("approved")
-    expect(Status.decode("rejected")).to eq("rejected")
+    expect(status.decode("pending")).to eq("pending")
+    expect(status.decode("approved")).to eq("approved")
+    expect(status.decode("rejected")).to eq("rejected")
 
-    expect { Status.decode("unknown") }.to raise_error(
+    expect { status.decode("unknown") }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected one of \["pending", "approved", "rejected"\]/
     )
   end
 
   it "validates number literals" do
-    class Priority < Raggio::Schema::Base
+    priority = Class.new(Raggio::Schema::Base) do
       literal 1, 2, 3
     end
 
-    expect(Priority.decode(1)).to eq(1)
-    expect(Priority.decode(2)).to eq(2)
-    expect(Priority.decode(3)).to eq(3)
+    expect(priority.decode(1)).to eq(1)
+    expect(priority.decode(2)).to eq(2)
+    expect(priority.decode(3)).to eq(3)
 
-    expect { Priority.decode(5) }.to raise_error(
+    expect { priority.decode(5) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected one of \[1, 2, 3\]/
     )
   end
 
   it "validates boolean literals" do
-    class Toggle < Raggio::Schema::Base
+    toggle = Class.new(Raggio::Schema::Base) do
       literal true, false
     end
 
-    expect(Toggle.decode(true)).to eq(true)
-    expect(Toggle.decode(false)).to eq(false)
+    expect(toggle.decode(true)).to eq(true)
+    expect(toggle.decode(false)).to eq(false)
 
-    expect { Toggle.decode("true") }.to raise_error(
+    expect { toggle.decode("true") }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected one of \[true, false\]/
     )
   end
 
   it "works within structs" do
-    class UserWithStatus < Raggio::Schema::Base
+    user_with_status = Class.new(Raggio::Schema::Base) do
       struct({
         name: string,
         status: literal(%w[active inactive banned])
       })
     end
 
-    result = UserWithStatus.decode({
+    result = user_with_status.decode({
       name: "Alice",
       status: "active"
     })
@@ -429,7 +429,7 @@ describe "Literal" do
     expect(result[:status]).to eq("active")
 
     expect do
-      UserWithStatus.decode({
+      user_with_status.decode({
         name: "Bob",
         status: "unknown"
       })
@@ -437,24 +437,24 @@ describe "Literal" do
   end
 
   it "validates single literal value" do
-    class Constant < Raggio::Schema::Base
+    constant = Class.new(Raggio::Schema::Base) do
       literal "SUCCESS"
     end
 
-    expect(Constant.decode("SUCCESS")).to eq("SUCCESS")
-    expect { Constant.decode("FAILURE") }.to raise_error(
+    expect(constant.decode("SUCCESS")).to eq("SUCCESS")
+    expect { constant.decode("FAILURE") }.to raise_error(
       Raggio::Schema::ValidationError
     )
   end
 
   it "validates literal with array syntax" do
-    class HttpMethod < Raggio::Schema::Base
+    http_method = Class.new(Raggio::Schema::Base) do
       literal %w[GET POST PUT DELETE]
     end
 
-    expect(HttpMethod.decode("GET")).to eq("GET")
-    expect(HttpMethod.decode("POST")).to eq("POST")
-    expect { HttpMethod.decode("PATCH") }.to raise_error(
+    expect(http_method.decode("GET")).to eq("GET")
+    expect(http_method.decode("POST")).to eq("POST")
+    expect { http_method.decode("PATCH") }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected one of \["GET", "POST", "PUT", "DELETE"\]/
     )
@@ -463,21 +463,21 @@ end
 
 describe "Union" do
   it "validates string or number" do
-    class StringOrNumber < Raggio::Schema::Base
+    string_or_number = Class.new(Raggio::Schema::Base) do
       union(string, number)
     end
 
-    expect(StringOrNumber.decode("hello")).to eq("hello")
-    expect(StringOrNumber.decode(42)).to eq(42)
+    expect(string_or_number.decode("hello")).to eq("hello")
+    expect(string_or_number.decode(42)).to eq(42)
 
-    expect { StringOrNumber.decode(true) }.to raise_error(
+    expect { string_or_number.decode(true) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Union decoding failed/
     )
   end
 
   it "validates union of literals" do
-    class Status < Raggio::Schema::Base
+    status = Class.new(Raggio::Schema::Base) do
       union(
         literal("pending"),
         literal("approved"),
@@ -485,125 +485,128 @@ describe "Union" do
       )
     end
 
-    expect(Status.decode("pending")).to eq("pending")
-    expect(Status.decode("approved")).to eq("approved")
-    expect(Status.decode("rejected")).to eq("rejected")
+    expect(status.decode("pending")).to eq("pending")
+    expect(status.decode("approved")).to eq("approved")
+    expect(status.decode("rejected")).to eq("rejected")
 
-    expect { Status.decode("unknown") }.to raise_error(Raggio::Schema::ValidationError)
+    expect { status.decode("unknown") }.to raise_error(Raggio::Schema::ValidationError)
   end
 
   it "validates union of structs" do
-    class Circle < Raggio::Schema::Base
+    circle = Class.new(Raggio::Schema::Base) do
       struct({
         kind: literal("circle"),
         radius: number
       })
     end
 
-    class Square < Raggio::Schema::Base
+    square = Class.new(Raggio::Schema::Base) do
       struct({
         kind: literal("square"),
         side_length: number
       })
     end
 
-    class Shape < Raggio::Schema::Base
-      union(Circle.schema_type, Square.schema_type)
+    shape = Class.new(Raggio::Schema::Base) do
+      c = circle
+      s = square
+      union(c.schema_type, s.schema_type)
     end
 
-    circle = Shape.decode({kind: "circle", radius: 10})
-    expect(circle[:kind]).to eq("circle")
-    expect(circle[:radius]).to eq(10)
+    circle_result = shape.decode({kind: "circle", radius: 10})
+    expect(circle_result[:kind]).to eq("circle")
+    expect(circle_result[:radius]).to eq(10)
 
-    square = Shape.decode({kind: "square", side_length: 5})
-    expect(square[:kind]).to eq("square")
-    expect(square[:side_length]).to eq(5)
+    square_result = shape.decode({kind: "square", side_length: 5})
+    expect(square_result[:kind]).to eq("square")
+    expect(square_result[:side_length]).to eq(5)
 
     expect do
-      Shape.decode({kind: "triangle", base: 5})
+      shape.decode({kind: "triangle", base: 5})
     end.to raise_error(Raggio::Schema::ValidationError)
   end
 
   it "tries members in order" do
-    class OverlappingUnion < Raggio::Schema::Base
+    overlapping_union = Class.new(Raggio::Schema::Base) do
       union(
         struct({a: string, b: number}),
         struct({a: string})
       )
     end
 
-    result = OverlappingUnion.decode({a: "test", b: 42})
+    result = overlapping_union.decode({a: "test", b: 42})
     expect(result).to eq({a: "test", b: 42})
 
-    result = OverlappingUnion.decode({a: "test"})
+    result = overlapping_union.decode({a: "test"})
     expect(result).to eq({a: "test"})
   end
 end
 
 describe "Tuple" do
   it "validates fixed-length tuples" do
-    class Point < Raggio::Schema::Base
+    point = Class.new(Raggio::Schema::Base) do
       tuple(number, number)
     end
 
-    expect(Point.decode([10, 20])).to eq([10, 20])
-    expect(Point.decode([0, 0])).to eq([0, 0])
+    expect(point.decode([10, 20])).to eq([10, 20])
+    expect(point.decode([0, 0])).to eq([0, 0])
   end
 
   it "validates tuples with different types" do
-    class Person < Raggio::Schema::Base
+    person = Class.new(Raggio::Schema::Base) do
       tuple(string, number, boolean)
     end
 
-    result = Person.decode(["Alice", 30, true])
+    result = person.decode(["Alice", 30, true])
     expect(result).to eq(["Alice", 30, true])
   end
 
-    it "rejects tuples with wrong length" do
-      class Pair < Raggio::Schema::Base
-        tuple(string, number)
-      end
-
-      expect { Pair.decode(["a"]) }.to raise_error(
-        Raggio::Schema::ValidationError,
-        /Expected exactly 2 elements, got 1/
-      )
-
-      expect { Pair.decode(["a", 1, true]) }.to raise_error(
-        Raggio::Schema::ValidationError,
-        /Expected exactly 2 elements, got 3/
-      )
+  it "rejects tuples with wrong length" do
+    pair = Class.new(Raggio::Schema::Base) do
+      tuple(string, number)
     end
 
+    expect { pair.decode(["a"]) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected exactly 2 elements, got 1/
+    )
+
+    expect { pair.decode(["a", 1, true]) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected exactly 2 elements, got 3/
+    )
+  end
+
   it "validates element types" do
-    class Coordinates < Raggio::Schema::Base
+    coordinates = Class.new(Raggio::Schema::Base) do
       tuple(number, number)
     end
 
-    expect { Coordinates.decode(["not a number", 20]) }.to raise_error(
+    expect { coordinates.decode(["not a number", 20]) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Tuple element at index 0/
     )
 
-    expect { Coordinates.decode([10, "not a number"]) }.to raise_error(
+    expect { coordinates.decode([10, "not a number"]) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Tuple element at index 1/
     )
   end
 
   it "works with nested schemas" do
-    class Address < Raggio::Schema::Base
+    address = Class.new(Raggio::Schema::Base) do
       struct({
         street: string,
         city: string
       })
     end
 
-    class PersonWithAddress < Raggio::Schema::Base
-      tuple(string, number, Address)
+    person_with_address = Class.new(Raggio::Schema::Base) do
+      addr = address
+      tuple(string, number, addr)
     end
 
-    result = PersonWithAddress.decode([
+    result = person_with_address.decode([
       "Bob",
       25,
       {street: "123 Main St", city: "NYC"}
@@ -615,77 +618,78 @@ describe "Tuple" do
   end
 
   it "encodes tuples correctly" do
-    class RGB < Raggio::Schema::Base
+    rgb = Class.new(Raggio::Schema::Base) do
       tuple(number, number, number)
     end
 
-    encoded = RGB.encode([255, 128, 0])
+    encoded = rgb.encode([255, 128, 0])
     expect(encoded).to eq([255, 128, 0])
   end
 end
 
 describe "Record" do
   it "validates basic record with string keys and number values" do
-    class Scores < Raggio::Schema::Base
+    scores = Class.new(Raggio::Schema::Base) do
       record(key: string, value: number)
     end
 
-    result = Scores.decode({"alice" => 95, "bob" => 87})
+    result = scores.decode({"alice" => 95, "bob" => 87})
     expect(result).to eq({"alice" => 95, "bob" => 87})
   end
 
   it "accepts symbol keys and converts them to strings" do
-    class Config < Raggio::Schema::Base
+    config = Class.new(Raggio::Schema::Base) do
       record(key: string, value: string)
     end
 
-    result = Config.decode({port: "3000", host: "localhost"})
+    result = config.decode({port: "3000", host: "localhost"})
     expect(result).to eq({"port" => "3000", "host" => "localhost"})
   end
 
   it "validates value types" do
-    class Inventory < Raggio::Schema::Base
+    inventory = Class.new(Raggio::Schema::Base) do
       record(key: string, value: number)
     end
 
-    expect { Inventory.decode({"apples" => "not a number"}) }.to raise_error(
+    expect { inventory.decode({"apples" => "not a number"}) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Invalid value for key "apples"/
     )
   end
 
   it "validates key types" do
-    class NumberMap < Raggio::Schema::Base
+    number_map = Class.new(Raggio::Schema::Base) do
       record(key: string, value: boolean)
     end
 
-    expect { NumberMap.decode({123 => true}) }.to raise_error(
+    expect { number_map.decode({123 => true}) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Invalid key 123/
     )
   end
 
   it "rejects non-hash values" do
-    class Map < Raggio::Schema::Base
+    map = Class.new(Raggio::Schema::Base) do
       record(key: string, value: string)
     end
 
-    expect { Map.decode("not a hash") }.to raise_error(
+    expect { map.decode("not a hash") }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected hash, got String/
     )
   end
 
   it "works with nested schemas as values" do
-    class Person < Raggio::Schema::Base
+    person = Class.new(Raggio::Schema::Base) do
       struct({name: string, age: number})
     end
 
-    class People < Raggio::Schema::Base
-      record(key: string, value: Person)
+    people = Class.new(Raggio::Schema::Base) do
+      p = person
+      record(key: string, value: p)
     end
 
-    result = People.decode({
+    result = people.decode({
       "alice" => {name: "Alice", age: 30},
       "bob" => {name: "Bob", age: 25}
     })
@@ -695,55 +699,56 @@ describe "Record" do
   end
 
   it "validates nested schema values" do
-    class Item < Raggio::Schema::Base
+    item = Class.new(Raggio::Schema::Base) do
       struct({price: number, quantity: number})
     end
 
-    class Cart < Raggio::Schema::Base
-      record(key: string, value: Item)
+    cart = Class.new(Raggio::Schema::Base) do
+      i = item
+      record(key: string, value: i)
     end
 
-    expect { Cart.decode({"item1" => {price: "invalid", quantity: 5}}) }.to raise_error(
+    expect { cart.decode({"item1" => {price: "invalid", quantity: 5}}) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Invalid value for key "item1"/
     )
   end
 
   it "encodes records correctly" do
-    class Metadata < Raggio::Schema::Base
+    metadata = Class.new(Raggio::Schema::Base) do
       record(key: string, value: number)
     end
 
-    encoded = Metadata.encode({"version" => 1, "count" => 42})
+    encoded = metadata.encode({"version" => 1, "count" => 42})
     expect(encoded).to eq({"version" => 1, "count" => 42})
   end
 
   it "handles empty hashes" do
-    class EmptyMap < Raggio::Schema::Base
+    empty_map = Class.new(Raggio::Schema::Base) do
       record(key: string, value: string)
     end
 
-    result = EmptyMap.decode({})
+    result = empty_map.decode({})
     expect(result).to eq({})
   end
 end
 
 describe "Symbol" do
   it "validates symbols" do
-    class Status < Raggio::Schema::Base
+    status = Class.new(Raggio::Schema::Base) do
       symbol
     end
 
-    result = Status.decode(:pending)
+    result = status.decode(:pending)
     expect(result).to eq(:pending)
   end
 
   it "rejects non-symbols" do
-    class Status < Raggio::Schema::Base
+    status = Class.new(Raggio::Schema::Base) do
       symbol
     end
 
-    expect { Status.decode("pending") }.to raise_error(
+    expect { status.decode("pending") }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected symbol, got String/
     )
@@ -752,20 +757,20 @@ end
 
 describe "Null" do
   it "validates nil values" do
-    class OnlyNull < Raggio::Schema::Base
+    only_null = Class.new(Raggio::Schema::Base) do
       null
     end
 
-    result = OnlyNull.decode(nil)
+    result = only_null.decode(nil)
     expect(result).to eq(nil)
   end
 
   it "rejects non-nil values" do
-    class OnlyNull < Raggio::Schema::Base
+    only_null = Class.new(Raggio::Schema::Base) do
       null
     end
 
-    expect { OnlyNull.decode("not nil") }.to raise_error(
+    expect { only_null.decode("not nil") }.to raise_error(
       Raggio::Schema::ValidationError,
       /Expected nil, got String/
     )
@@ -774,43 +779,43 @@ end
 
 describe "Nullable" do
   it "accepts value or nil" do
-    class NullableString < Raggio::Schema::Base
+    nullable_string = Class.new(Raggio::Schema::Base) do
       nullable(string)
     end
 
-    expect(NullableString.decode("hello")).to eq("hello")
-    expect(NullableString.decode(nil)).to eq(nil)
+    expect(nullable_string.decode("hello")).to eq("hello")
+    expect(nullable_string.decode(nil)).to eq(nil)
   end
 
   it "rejects invalid values" do
-    class NullableNumber < Raggio::Schema::Base
+    nullable_number = Class.new(Raggio::Schema::Base) do
       nullable(number)
     end
 
-    expect { NullableNumber.decode("not a number") }.to raise_error(
+    expect { nullable_number.decode("not a number") }.to raise_error(
       Raggio::Schema::ValidationError
     )
   end
 
   it "works in structs" do
-    class User < Raggio::Schema::Base
+    user = Class.new(Raggio::Schema::Base) do
       struct({
         name: string,
         email: nullable(string)
       })
     end
 
-    result1 = User.decode({name: "Alice", email: "alice@example.com"})
+    result1 = user.decode({name: "Alice", email: "alice@example.com"})
     expect(result1).to eq({name: "Alice", email: "alice@example.com"})
 
-    result2 = User.decode({name: "Bob", email: nil})
+    result2 = user.decode({name: "Bob", email: nil})
     expect(result2).to eq({name: "Bob", email: nil})
   end
 end
 
 describe "Optional vs Nullable" do
   it "optional allows missing keys, nullable allows nil values" do
-    class Config < Raggio::Schema::Base
+    config = Class.new(Raggio::Schema::Base) do
       struct({
         required: string,
         nullable_field: nullable(string),
@@ -818,19 +823,19 @@ describe "Optional vs Nullable" do
       })
     end
 
-    expect(Config.decode({required: "hi", nullable_field: nil, optional_field: "opt"})).to eq(
+    expect(config.decode({required: "hi", nullable_field: nil, optional_field: "opt"})).to eq(
       {required: "hi", nullable_field: nil, optional_field: "opt"}
     )
 
-    expect(Config.decode({required: "hi", nullable_field: nil})).to eq(
+    expect(config.decode({required: "hi", nullable_field: nil})).to eq(
       {required: "hi", nullable_field: nil}
     )
 
-    expect(Config.decode({required: "hi", nullable_field: "val"})).to eq(
+    expect(config.decode({required: "hi", nullable_field: "val"})).to eq(
       {required: "hi", nullable_field: "val"}
     )
 
-    expect { Config.decode({required: "hi"}) }.to raise_error(
+    expect { config.decode({required: "hi"}) }.to raise_error(
       Raggio::Schema::ValidationError,
       /Field 'nullable_field' is required/
     )
