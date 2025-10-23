@@ -8,7 +8,9 @@ task :spec do
   GEMS.each do |gem|
     Dir.chdir(gem) do
       puts "\n=== Running specs for #{gem} ==="
-      sh 'bundle exec rspec'
+      Bundler.with_unbundled_env do
+        sh 'bundle exec rspec'
+      end
     end
   end
 end

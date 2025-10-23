@@ -13,6 +13,7 @@
           inherit (pkgs) git nixd alejandra;
           ruby = pkgs.ruby.withPackages (r: with r; [ruby-lsp]);
         };
+        env.RUBYOPT = "-W0";
       };
     });
   };
