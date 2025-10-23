@@ -44,6 +44,10 @@ module Raggio
           @schema_type = TupleType.new(*elements)
         end
 
+        def record(key:, value:)
+          @schema_type = RecordType.new(key: key, value: value)
+        end
+
         def optional(type)
           type.optional!
           type

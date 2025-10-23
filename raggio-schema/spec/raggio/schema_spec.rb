@@ -623,3 +623,107 @@ describe "Tuple" do
     expect(encoded).to eq([255, 128, 0])
   end
 end
+
+describe "Record" do
+  it "validates basic record with string keys and number values" do
+    class Scores < Raggio::Schema::Base
+      record(key: string, value: number)
+    end
+
+    result = Scores.decode({"alice" => 95, "bob" => 87})
+    expect(result).to eq({"alice" => 95, "bob" => 87})
+  end
+
+  it "accepts symbol keys and converts them to strings" do
+    class Config < Raggio::Schema::Base
+      record(key: string, value: string)
+    end
+
+    result = Config.decode({port: "3000", host: "localhost"})
+    expect(result).to eq({"port" => "3000", "host" => "localhost"})
+  end
+
+  it "validates value types" do
+    class Inventory < Raggio::Schema::Base
+      record(key: string, value: number)
+    end
+
+    expect { Inventory.decode({"apples" => "not a number"}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Invalid value for key "apples"/
+    )
+  end
+
+  it "validates key types" do
+    class NumberMap < Raggio::Schema::Base
+      record(key: string, value: boolean)
+    end
+
+    expect { NumberMap.decode({123 => true}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Invalid key 123/
+    )
+  end
+
+  it "rejects non-hash values" do
+    class Map < Raggio::Schema::Base
+      record(key: string, value: string)
+    end
+
+    expect { Map.decode("not a hash") }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected hash, got String/
+    )
+  end
+
+  it "works with nested schemas as values" do
+    class Person < Raggio::Schema::Base
+      struct({name: string, age: number})
+    end
+
+    class People < Raggio::Schema::Base
+      record(key: string, value: Person)
+    end
+
+    result = People.decode({
+      "alice" => {name: "Alice", age: 30},
+      "bob" => {name: "Bob", age: 25}
+    })
+
+    expect(result["alice"]).to eq({name: "Alice", age: 30})
+    expect(result["bob"]).to eq({name: "Bob", age: 25})
+  end
+
+  it "validates nested schema values" do
+    class Item < Raggio::Schema::Base
+      struct({price: number, quantity: number})
+    end
+
+    class Cart < Raggio::Schema::Base
+      record(key: string, value: Item)
+    end
+
+    expect { Cart.decode({"item1" => {price: "invalid", quantity: 5}}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Invalid value for key "item1"/
+    )
+  end
+
+  it "encodes records correctly" do
+    class Metadata < Raggio::Schema::Base
+      record(key: string, value: number)
+    end
+
+    encoded = Metadata.encode({"version" => 1, "count" => 42})
+    expect(encoded).to eq({"version" => 1, "count" => 42})
+  end
+
+  it "handles empty hashes" do
+    class EmptyMap < Raggio::Schema::Base
+      record(key: string, value: string)
+    end
+
+    result = EmptyMap.decode({})
+    expect(result).to eq({})
+  end
+end

@@ -353,6 +353,70 @@ module Raggio
       end
     end
 
+    class RecordType < Type
+      attr_reader :key_type, :value_type
+
+      def initialize(key:, value:)
+        super()
+        @key_type = key
+        @value_type = value
+      end
+
+      def validate(value)
+        raise ValidationError, "Expected hash, got #{value.class}" unless value.is_a?(Hash)
+
+        value.each do |k, v|
+          key = k.is_a?(Symbol) ? k.to_s : k
+          begin
+            key_type.validate(key)
+          rescue ValidationError => e
+            raise ValidationError, "Invalid key #{k.inspect}: #{e.message}"
+          end
+
+          begin
+            value_type_to_use = (value_type.is_a?(Class) && value_type < Raggio::Schema::Base) ? value_type.schema_type : value_type
+            value_type_to_use.validate(v)
+          rescue ValidationError => e
+            raise ValidationError, "Invalid value for key #{k.inspect}: #{e.message}"
+          end
+        end
+      end
+
+      def decode(value)
+        return nil if value.nil? && @optional
+        raise ValidationError, "Value cannot be nil" if value.nil?
+
+        validate(value)
+
+        result = {}
+        value.each do |k, v|
+          key = k.is_a?(Symbol) ? k.to_s : k
+          decoded_key = key_type.decode(key)
+
+          value_type_to_use = (value_type.is_a?(Class) && value_type < Raggio::Schema::Base) ? value_type.schema_type : value_type
+          decoded_value = value_type_to_use.decode(v)
+
+          result[decoded_key] = decoded_value
+        end
+        result
+      end
+
+      def encode(value)
+        return nil if value.nil?
+
+        result = {}
+        value.each do |k, v|
+          encoded_key = key_type.encode(k)
+
+          value_type_to_use = (value_type.is_a?(Class) && value_type < Raggio::Schema::Base) ? value_type.schema_type : value_type
+          encoded_value = value_type_to_use.encode(v)
+
+          result[encoded_key] = encoded_value
+        end
+        result
+      end
+    end
+
     class TransformType < Type
       attr_reader :from_type, :to_type, :decode_fn, :encode_fn
 
