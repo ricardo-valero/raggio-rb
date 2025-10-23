@@ -65,8 +65,7 @@ module Raggio
         end
 
         def optional(type)
-          type.optional!
-          type
+          OptionalField.new(type)
         end
 
         def transform(from_type, to_type, decode:, encode:)

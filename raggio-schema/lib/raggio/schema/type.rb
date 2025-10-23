@@ -3,16 +3,10 @@
 module Raggio
   module Schema
     class Type
-      attr_reader :constraints, :optional
+      attr_reader :constraints
 
       def initialize(**constraints)
         @constraints = constraints
-        @optional = false
-      end
-
-      def optional!
-        @optional = true
-        self
       end
 
       def validate(value)
@@ -24,11 +18,18 @@ module Raggio
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
 
         validate(value)
         value
+      end
+    end
+
+    class OptionalField
+      attr_reader :type
+
+      def initialize(type)
+        @type = type
       end
     end
 
@@ -48,7 +49,6 @@ module Raggio
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
 
         decoded = from_type.decode(value)

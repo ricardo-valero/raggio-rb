@@ -727,3 +727,112 @@ describe "Record" do
     expect(result).to eq({})
   end
 end
+
+describe "Symbol" do
+  it "validates symbols" do
+    class Status < Raggio::Schema::Base
+      symbol
+    end
+
+    result = Status.decode(:pending)
+    expect(result).to eq(:pending)
+  end
+
+  it "rejects non-symbols" do
+    class Status < Raggio::Schema::Base
+      symbol
+    end
+
+    expect { Status.decode("pending") }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected symbol, got String/
+    )
+  end
+end
+
+describe "Null" do
+  it "validates nil values" do
+    class OnlyNull < Raggio::Schema::Base
+      null
+    end
+
+    result = OnlyNull.decode(nil)
+    expect(result).to eq(nil)
+  end
+
+  it "rejects non-nil values" do
+    class OnlyNull < Raggio::Schema::Base
+      null
+    end
+
+    expect { OnlyNull.decode("not nil") }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected nil, got String/
+    )
+  end
+end
+
+describe "Nullable" do
+  it "accepts value or nil" do
+    class NullableString < Raggio::Schema::Base
+      nullable(string)
+    end
+
+    expect(NullableString.decode("hello")).to eq("hello")
+    expect(NullableString.decode(nil)).to eq(nil)
+  end
+
+  it "rejects invalid values" do
+    class NullableNumber < Raggio::Schema::Base
+      nullable(number)
+    end
+
+    expect { NullableNumber.decode("not a number") }.to raise_error(
+      Raggio::Schema::ValidationError
+    )
+  end
+
+  it "works in structs" do
+    class User < Raggio::Schema::Base
+      struct({
+        name: string,
+        email: nullable(string)
+      })
+    end
+
+    result1 = User.decode({name: "Alice", email: "alice@example.com"})
+    expect(result1).to eq({name: "Alice", email: "alice@example.com"})
+
+    result2 = User.decode({name: "Bob", email: nil})
+    expect(result2).to eq({name: "Bob", email: nil})
+  end
+end
+
+describe "Optional vs Nullable" do
+  it "optional allows missing keys, nullable allows nil values" do
+    class Config < Raggio::Schema::Base
+      struct({
+        required: string,
+        nullable_field: nullable(string),
+        optional_field: optional(string)
+      })
+    end
+
+    expect(Config.decode({required: "hi", nullable_field: nil, optional_field: "opt"})).to eq(
+      {required: "hi", nullable_field: nil, optional_field: "opt"}
+    )
+
+    expect(Config.decode({required: "hi", nullable_field: nil})).to eq(
+      {required: "hi", nullable_field: nil}
+    )
+
+    expect(Config.decode({required: "hi", nullable_field: "val"})).to eq(
+      {required: "hi", nullable_field: "val"}
+    )
+
+    expect { Config.decode({required: "hi"}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Field 'nullable_field' is required/
+    )
+  end
+end

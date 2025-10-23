@@ -60,6 +60,11 @@ module Raggio
       def validate(value)
         raise ValidationError, "Expected nil, got #{value.class}" unless value.nil?
       end
+
+      def decode(value)
+        raise ValidationError, "Expected nil, got #{value.class}" unless value.nil?
+        nil
+      end
     end
   end
 end

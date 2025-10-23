@@ -54,9 +54,6 @@ module Raggio
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
-        raise ValidationError, "Value cannot be nil" if value.nil?
-
         errors = []
 
         @members.each do |member|
@@ -111,25 +108,26 @@ module Raggio
           raise ValidationError, "Unexpected keys: #{extra_keys.inspect}" if extra_keys.any?
         end
 
-        fields.each do |key, type|
+        fields.each do |key, field_type|
+          is_optional_field = field_type.is_a?(OptionalField)
+          actual_type = is_optional_field ? field_type.type : field_type
+
+          has_key = value.key?(key) || value.key?(key.to_s)
           field_value = value.key?(key) ? value[key] : value[key.to_s]
 
-          is_optional_field = (type.is_a?(Type) && type.optional) || false
+          raise ValidationError, "Field '#{key}' is required" if !has_key && !is_optional_field
 
-          raise ValidationError, "Field '#{key}' is required" if field_value.nil? && !is_optional_field
+          next if !has_key && is_optional_field
 
-          next if field_value.nil? && is_optional_field
-
-          if type.is_a?(Class) && type < Raggio::Schema::Base
-            type.schema_type.validate(field_value)
+          if actual_type.is_a?(Class) && actual_type < Raggio::Schema::Base
+            actual_type.schema_type.validate(field_value)
           else
-            type.validate(field_value)
+            actual_type.validate(field_value)
           end
         end
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
 
         validate(value)
@@ -137,12 +135,18 @@ module Raggio
         extra_keys_mode = constraints[:extra_keys] || :reject
 
         result = {}
-        fields.each do |key, type|
+        fields.each do |key, field_type|
+          is_optional_field = field_type.is_a?(OptionalField)
+          actual_type = is_optional_field ? field_type.type : field_type
+
+          has_key = value.key?(key) || value.key?(key.to_s)
+          next if !has_key && is_optional_field
+
           field_value = value.key?(key) ? value[key] : value[key.to_s]
 
-          if type.is_a?(Class) && type < Raggio::Schema::Base
+          if actual_type.is_a?(Class) && actual_type < Raggio::Schema::Base
           end
-          result[key] = type.decode(field_value)
+          result[key] = actual_type.decode(field_value)
         end
 
         if extra_keys_mode == :include
@@ -162,12 +166,18 @@ module Raggio
         return nil if value.nil?
 
         result = {}
-        fields.each do |key, type|
+        fields.each do |key, field_type|
+          is_optional_field = field_type.is_a?(OptionalField)
+          actual_type = is_optional_field ? field_type.type : field_type
+
+          has_key = value.key?(key) || value.key?(key.to_s)
+          next if !has_key && is_optional_field
+
           field_value = value.key?(key) ? value[key] : value[key.to_s]
 
-          if type.is_a?(Class) && type < Raggio::Schema::Base
+          if actual_type.is_a?(Class) && actual_type < Raggio::Schema::Base
           end
-          result[key] = type.encode(field_value)
+          result[key] = actual_type.encode(field_value)
         end
         result
       end
@@ -210,7 +220,6 @@ module Raggio
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
 
         validate(value)
@@ -261,7 +270,6 @@ module Raggio
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
 
         validate(value)
@@ -314,7 +322,6 @@ module Raggio
       end
 
       def decode(value)
-        return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
 
         validate(value)
