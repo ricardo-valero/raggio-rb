@@ -1,4 +1,6 @@
-require 'raggio-schema'
+# frozen_string_literal: true
+
+require "raggio-schema"
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
