@@ -3,7 +3,7 @@
 module Raggio
   module Schema
     class StringType < Type
-      def validate(value)
+      def decode(value)
         raise ValidationError, "Expected string, got #{value.class}" unless value.is_a?(String)
 
         if constraints[:min] && value.length < constraints[:min]
@@ -14,14 +14,16 @@ module Raggio
           raise ValidationError, "String length must be at most #{constraints[:max]}"
         end
 
-        return unless constraints[:format] && !constraints[:format].match?(value)
+        if constraints[:format] && !constraints[:format].match?(value)
+          raise ValidationError, "String must match format #{constraints[:format].inspect}"
+        end
 
-        raise ValidationError, "String must match format #{constraints[:format].inspect}"
+        value
       end
     end
 
     class NumberType < Type
-      def validate(value)
+      def decode(value)
         raise ValidationError, "Expected number, got #{value.class}" unless value.is_a?(Numeric)
 
         if constraints[:greater_than] && value <= constraints[:greater_than]
@@ -36,29 +38,37 @@ module Raggio
           raise ValidationError, "Number must be at least #{constraints[:min]}"
         end
 
-        return unless constraints[:max] && value > constraints[:max]
+        if constraints[:max] && value > constraints[:max]
+          raise ValidationError, "Number must be at most #{constraints[:max]}"
+        end
 
-        raise ValidationError, "Number must be at most #{constraints[:max]}"
+        value
       end
     end
 
     class BooleanType < Type
-      def validate(value)
-        return if value.is_a?(TrueClass) || value.is_a?(FalseClass)
+      def decode(value)
+        unless value.is_a?(TrueClass) || value.is_a?(FalseClass)
+          raise ValidationError, "Expected boolean, got #{value.class}"
+        end
 
-        raise ValidationError, "Expected boolean, got #{value.class}"
+        value
       end
     end
 
     class SymbolType < Type
-      def validate(value)
+      def decode(value)
         raise ValidationError, "Expected symbol, got #{value.class}" unless value.is_a?(Symbol)
+
+        value
       end
     end
 
     class NullType < Type
-      def validate(value)
+      def decode(value)
         raise ValidationError, "Expected nil, got #{value.class}" unless value.nil?
+
+        nil
       end
     end
   end

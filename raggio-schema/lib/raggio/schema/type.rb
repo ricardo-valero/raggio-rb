@@ -9,17 +9,12 @@ module Raggio
         @constraints = constraints
       end
 
-      def validate(value)
-        raise NotImplementedError
-      end
-
       def encode(value)
         value
       end
 
       def decode(value)
-        validate(value)
-        value
+        raise NotImplementedError
       end
     end
 
@@ -40,10 +35,6 @@ module Raggio
         @to_type = to_type
         @decode_fn = decode
         @encode_fn = encode
-      end
-
-      def validate(value)
-        from_type.validate(value)
       end
 
       def decode(value)
