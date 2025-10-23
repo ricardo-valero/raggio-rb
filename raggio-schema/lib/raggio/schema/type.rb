@@ -18,8 +18,6 @@ module Raggio
       end
 
       def decode(value)
-        raise ValidationError, "Value cannot be nil" if value.nil?
-
         validate(value)
         value
       end
@@ -49,8 +47,6 @@ module Raggio
       end
 
       def decode(value)
-        raise ValidationError, "Value cannot be nil" if value.nil?
-
         decoded = from_type.decode(value)
         decode_fn.call(decoded)
       end
