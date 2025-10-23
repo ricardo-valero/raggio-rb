@@ -26,7 +26,7 @@ RSpec.describe Raggio::Schema do
 
     it "validates string with in constraint" do
       mass_unit_schema = Class.new(Raggio::Schema::Base) do
-        literal("KG", "LB")
+        literal %w[KG LB]
       end
 
       expect(mass_unit_schema.decode("KG")).to eq("KG")
@@ -109,9 +109,9 @@ RSpec.describe Raggio::Schema do
             length: number(greater_than: 0),
             weight: number(greater_than: 0),
             width: number(greater_than: 0),
-            mass_unit: literal("KG", "LB"),
-            currency: literal("MXN", "USD"),
-            distance_unit: literal("CM", "IN")
+            mass_unit: literal(%w[KG LB]),
+            currency: literal(%w[MXN USD]),
+            distance_unit: literal(%w[CM IN])
           })
         })
       end
@@ -370,7 +370,7 @@ end
 describe "Literal" do
   it "validates string literals" do
     class Status < Raggio::Schema::Base
-      literal "pending", "approved", "rejected"
+      literal %w[pending approved rejected]
     end
 
     expect(Status.decode("pending")).to eq("pending")
@@ -416,7 +416,7 @@ describe "Literal" do
     class UserWithStatus < Raggio::Schema::Base
       struct({
         name: string,
-        status: literal("active", "inactive", "banned")
+        status: literal(%w[active inactive banned])
       })
     end
 
