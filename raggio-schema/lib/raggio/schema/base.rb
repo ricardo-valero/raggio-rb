@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require_relative "type"
+require_relative "primitive"
+require_relative "composite"
+
 module Raggio
   module Schema
     class Base
@@ -21,6 +25,14 @@ module Raggio
 
         def boolean
           @schema_type = BooleanType.new
+        end
+
+        def symbol
+          @schema_type = SymbolType.new
+        end
+
+        def null
+          @schema_type = NullType.new
         end
 
         def literal(*values)
@@ -46,6 +58,10 @@ module Raggio
 
         def record(key:, value:)
           @schema_type = RecordType.new(key: key, value: value)
+        end
+
+        def nullable(type)
+          @schema_type = UnionType.new(type, NullType.new)
         end
 
         def optional(type)

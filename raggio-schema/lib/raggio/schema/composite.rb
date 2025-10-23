@@ -1,85 +1,16 @@
 # frozen_string_literal: true
 
+# Composite types contain other types as members or elements:
+#
+# - LiteralType: Validates exact value matches
+# - UnionType: Contains member types (ordered members)
+# - StructType: Contains field types (named members)
+# - ArrayType: Contains single element type
+# - TupleType: Contains multiple element types (fixed positions)
+# - RecordType: Contains key/value types (dynamic keys)
+
 module Raggio
   module Schema
-    class Type
-      attr_reader :constraints, :optional
-
-      def initialize(**constraints)
-        @constraints = constraints
-        @optional = false
-      end
-
-      def optional!
-        @optional = true
-        self
-      end
-
-      def validate(value)
-        raise NotImplementedError
-      end
-
-      def encode(value)
-        value
-      end
-
-      def decode(value)
-        return nil if value.nil? && @optional
-        raise ValidationError, "Value cannot be nil" if value.nil?
-
-        validate(value)
-        value
-      end
-    end
-
-    class StringType < Type
-      def validate(value)
-        raise ValidationError, "Expected string, got #{value.class}" unless value.is_a?(String)
-
-        if constraints[:min] && value.length < constraints[:min]
-          raise ValidationError, "String length must be at least #{constraints[:min]}"
-        end
-
-        if constraints[:max] && value.length > constraints[:max]
-          raise ValidationError, "String length must be at most #{constraints[:max]}"
-        end
-
-        return unless constraints[:format] && !constraints[:format].match?(value)
-
-        raise ValidationError, "String must match format #{constraints[:format].inspect}"
-      end
-    end
-
-    class NumberType < Type
-      def validate(value)
-        raise ValidationError, "Expected number, got #{value.class}" unless value.is_a?(Numeric)
-
-        if constraints[:greater_than] && value <= constraints[:greater_than]
-          raise ValidationError, "Number must be greater than #{constraints[:greater_than]}"
-        end
-
-        if constraints[:less_than] && value >= constraints[:less_than]
-          raise ValidationError, "Number must be less than #{constraints[:less_than]}"
-        end
-
-        if constraints[:min] && value < constraints[:min]
-          raise ValidationError, "Number must be at least #{constraints[:min]}"
-        end
-
-        return unless constraints[:max] && value > constraints[:max]
-
-        raise ValidationError, "Number must be at most #{constraints[:max]}"
-      end
-    end
-
-    class BooleanType < Type
-      def validate(value)
-        return if value.is_a?(TrueClass) || value.is_a?(FalseClass)
-
-        raise ValidationError, "Expected boolean, got #{value.class}"
-      end
-    end
-
     class LiteralType < Type
       attr_reader :values
 
@@ -416,38 +347,5 @@ module Raggio
         result
       end
     end
-
-    class TransformType < Type
-      attr_reader :from_type, :to_type, :decode_fn, :encode_fn
-
-      def initialize(from_type, to_type, decode:, encode:)
-        super()
-        @from_type = from_type
-        @to_type = to_type
-        @decode_fn = decode
-        @encode_fn = encode
-      end
-
-      def validate(value)
-        from_type.validate(value)
-      end
-
-      def decode(value)
-        return nil if value.nil? && @optional
-        raise ValidationError, "Value cannot be nil" if value.nil?
-
-        decoded = from_type.decode(value)
-        decode_fn.call(decoded)
-      end
-
-      def encode(value)
-        return nil if value.nil?
-
-        encoded = encode_fn.call(value)
-        from_type.encode(encoded)
-      end
-    end
-
-    class ValidationError < StandardError; end
   end
 end
