@@ -539,3 +539,87 @@ describe "Union" do
     expect(result).to eq({a: "test"})
   end
 end
+
+describe "Tuple" do
+  it "validates fixed-length tuples" do
+    class Point < Raggio::Schema::Base
+      tuple(number, number)
+    end
+
+    expect(Point.decode([10, 20])).to eq([10, 20])
+    expect(Point.decode([0, 0])).to eq([0, 0])
+  end
+
+  it "validates tuples with different types" do
+    class Person < Raggio::Schema::Base
+      tuple(string, number, boolean)
+    end
+
+    result = Person.decode(["Alice", 30, true])
+    expect(result).to eq(["Alice", 30, true])
+  end
+
+    it "rejects tuples with wrong length" do
+      class Pair < Raggio::Schema::Base
+        tuple(string, number)
+      end
+
+      expect { Pair.decode(["a"]) }.to raise_error(
+        Raggio::Schema::ValidationError,
+        /Expected exactly 2 elements, got 1/
+      )
+
+      expect { Pair.decode(["a", 1, true]) }.to raise_error(
+        Raggio::Schema::ValidationError,
+        /Expected exactly 2 elements, got 3/
+      )
+    end
+
+  it "validates element types" do
+    class Coordinates < Raggio::Schema::Base
+      tuple(number, number)
+    end
+
+    expect { Coordinates.decode(["not a number", 20]) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Tuple element at index 0/
+    )
+
+    expect { Coordinates.decode([10, "not a number"]) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Tuple element at index 1/
+    )
+  end
+
+  it "works with nested schemas" do
+    class Address < Raggio::Schema::Base
+      struct({
+        street: string,
+        city: string
+      })
+    end
+
+    class PersonWithAddress < Raggio::Schema::Base
+      tuple(string, number, Address)
+    end
+
+    result = PersonWithAddress.decode([
+      "Bob",
+      25,
+      {street: "123 Main St", city: "NYC"}
+    ])
+
+    expect(result[0]).to eq("Bob")
+    expect(result[1]).to eq(25)
+    expect(result[2]).to eq({street: "123 Main St", city: "NYC"})
+  end
+
+  it "encodes tuples correctly" do
+    class RGB < Raggio::Schema::Base
+      tuple(number, number, number)
+    end
+
+    encoded = RGB.encode([255, 128, 0])
+    expect(encoded).to eq([255, 128, 0])
+  end
+end

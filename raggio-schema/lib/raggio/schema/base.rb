@@ -40,6 +40,10 @@ module Raggio
           @schema_type = ArrayType.new(type, **constraints)
         end
 
+        def tuple(*elements)
+          @schema_type = TupleType.new(*elements)
+        end
+
         def optional(type)
           type.optional!
           type

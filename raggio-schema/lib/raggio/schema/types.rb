@@ -302,6 +302,57 @@ module Raggio
       end
     end
 
+    class TupleType < Type
+      attr_reader :elements
+
+      def initialize(*elements)
+        super()
+        @elements = elements
+      end
+
+      def validate(value)
+        raise ValidationError, "Expected array, got #{value.class}" unless value.is_a?(Array)
+
+        if value.length != @elements.length
+          raise ValidationError, "Expected exactly #{@elements.length} elements, got #{value.length}"
+        end
+
+        @elements.each_with_index do |element_type, index|
+          item = value[index]
+          if element_type.is_a?(Class) && element_type < Raggio::Schema::Base
+            element_type.schema_type.validate(item)
+          else
+            element_type.validate(item)
+          end
+        rescue ValidationError => e
+          raise ValidationError, "Tuple element at index #{index}: #{e.message}"
+        end
+      end
+
+      def decode(value)
+        return nil if value.nil? && @optional
+        raise ValidationError, "Value cannot be nil" if value.nil?
+
+        validate(value)
+
+        @elements.map.with_index do |element_type, index|
+          item = value[index]
+          element_type = element_type.schema_type if element_type.is_a?(Class) && element_type < Raggio::Schema::Base
+          element_type.decode(item)
+        end
+      end
+
+      def encode(value)
+        return nil if value.nil?
+
+        @elements.map.with_index do |element_type, index|
+          item = value[index]
+          element_type = element_type.schema_type if element_type.is_a?(Class) && element_type < Raggio::Schema::Base
+          element_type.encode(item)
+        end
+      end
+    end
+
     class TransformType < Type
       attr_reader :from_type, :to_type, :decode_fn, :encode_fn
 
