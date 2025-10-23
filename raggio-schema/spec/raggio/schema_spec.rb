@@ -241,4 +241,124 @@ RSpec.describe Raggio::Schema do
       expect(encoded[:amount]).to eq(123.45)
     end
   end
+
+  describe 'array constraints' do
+    it 'validates min constraint' do
+      schema = Class.new(Raggio::Schema::Base) do
+        array(string, min: 2)
+      end
+
+      expect(schema.decode(['a', 'b'])).to eq(['a', 'b'])
+      expect(schema.decode(['a', 'b', 'c'])).to eq(['a', 'b', 'c'])
+      expect { schema.decode(['a']) }.to raise_error(Raggio::Schema::ValidationError, /at least 2/)
+    end
+
+    it 'validates max constraint' do
+      schema = Class.new(Raggio::Schema::Base) do
+        array(string, max: 2)
+      end
+
+      expect(schema.decode(['a', 'b'])).to eq(['a', 'b'])
+      expect(schema.decode(['a'])).to eq(['a'])
+      expect { schema.decode(['a', 'b', 'c']) }.to raise_error(Raggio::Schema::ValidationError, /at most 2/)
+    end
+
+    it 'validates length constraint' do
+      schema = Class.new(Raggio::Schema::Base) do
+        array(string, length: 2)
+      end
+
+      expect(schema.decode(['a', 'b'])).to eq(['a', 'b'])
+      expect { schema.decode(['a']) }.to raise_error(Raggio::Schema::ValidationError, /exactly 2/)
+      expect { schema.decode(['a', 'b', 'c']) }.to raise_error(Raggio::Schema::ValidationError, /exactly 2/)
+    end
+
+    it 'validates unique constraint' do
+      schema = Class.new(Raggio::Schema::Base) do
+        array(string, unique: true)
+      end
+
+      expect(schema.decode(['a', 'b', 'c'])).to eq(['a', 'b', 'c'])
+      expect { schema.decode(['a', 'b', 'a']) }.to raise_error(Raggio::Schema::ValidationError, /must be unique/)
+    end
+
+    it 'combines multiple constraints' do
+      schema = Class.new(Raggio::Schema::Base) do
+        array(string, min: 2, max: 4, unique: true)
+      end
+
+      expect(schema.decode(['a', 'b'])).to eq(['a', 'b'])
+      expect { schema.decode(['a']) }.to raise_error(Raggio::Schema::ValidationError)
+      expect { schema.decode(['a', 'b', 'c', 'd', 'e']) }.to raise_error(Raggio::Schema::ValidationError)
+      expect { schema.decode(['a', 'b', 'a']) }.to raise_error(Raggio::Schema::ValidationError)
+    end
+  end
+
+  describe 'struct constraints' do
+    it 'rejects extra keys by default (extra_keys: :reject)' do
+      schema = Class.new(Raggio::Schema::Base) do
+        struct({
+          name: string
+        })
+      end
+
+      expect(schema.decode({ name: 'John' })).to eq({ name: 'John' })
+      expect { schema.decode({ name: 'John', age: 30 }) }.to raise_error(Raggio::Schema::ValidationError, /Unexpected keys/)
+    end
+
+    it 'allows but excludes extra keys with extra_keys: :allow' do
+      schema = Class.new(Raggio::Schema::Base) do
+        struct({
+          name: string
+        }, extra_keys: :allow)
+      end
+
+      result = schema.decode({ name: 'John', age: 30, city: 'NYC' })
+      expect(result[:name]).to eq('John')
+      expect(result[:age]).to be_nil
+      expect(result[:city]).to be_nil
+      expect(result.keys).to eq([:name])
+    end
+
+    it 'includes extra keys with extra_keys: :include' do
+      schema = Class.new(Raggio::Schema::Base) do
+        struct({
+          name: string
+        }, extra_keys: :include)
+      end
+
+      result = schema.decode({ name: 'John', age: 30, city: 'NYC' })
+      expect(result[:name]).to eq('John')
+      expect(result[:age]).to eq(30)
+      expect(result[:city]).to eq('NYC')
+    end
+
+    it 'validates required fields (non-optional)' do
+      schema = Class.new(Raggio::Schema::Base) do
+        struct({
+          name: string,
+          email: optional(string),
+          age: number
+        })
+      end
+
+      expect(schema.decode({ name: 'John', age: 30 })).to be_a(Hash)
+      expect(schema.decode({ name: 'John', age: 30 })[:email]).to be_nil
+    end
+
+    it 'allows nil for optional fields' do
+      schema = Class.new(Raggio::Schema::Base) do
+        struct({
+          name: string,
+          email: optional(string),
+          phone: optional(string)
+        })
+      end
+
+      result = schema.decode({ name: 'John' })
+      expect(result[:name]).to eq('John')
+      expect(result[:email]).to be_nil
+      expect(result[:phone]).to be_nil
+    end
+  end
 end

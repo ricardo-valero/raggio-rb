@@ -21,12 +21,12 @@ module Raggio
           @schema_type = BooleanType.new
         end
 
-        def struct(fields)
-          @schema_type = StructType.new(fields)
+        def struct(fields, **constraints)
+          @schema_type = StructType.new(fields, **constraints)
         end
 
-        def array(item_type)
-          @schema_type = ArrayType.new(item_type)
+        def array(type, **constraints)
+          @schema_type = ArrayType.new(type, **constraints)
         end
 
         def optional(type)
