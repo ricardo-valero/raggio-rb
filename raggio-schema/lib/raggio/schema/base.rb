@@ -64,8 +64,12 @@ module Raggio
           @schema_type = UnionType.new(type, NullType.new)
         end
 
-        def optional(type)
-          OptionalField.new(type)
+        def optional(type, default_value = nil)
+          OptionalField.new(type, default_value)
+        end
+
+        def lazy(schema_class)
+          LazyType.new(schema_class)
         end
 
         def transform(from_type, to_type, decode:, encode:)

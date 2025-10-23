@@ -841,3 +841,228 @@ describe "Optional vs Nullable" do
     )
   end
 end
+
+describe "Lazy/Recursive Types" do
+  it "validates tree structures" do
+    tree_node = Class.new(Raggio::Schema::Base) do
+      struct({
+        value: number,
+        children: array(lazy(self))
+      })
+    end
+
+    tree = tree_node.decode({
+      value: 1,
+      children: [
+        {value: 2, children: []},
+        {value: 3, children: [{value: 4, children: []}]}
+      ]
+    })
+
+    expect(tree[:value]).to eq(1)
+    expect(tree[:children].length).to eq(2)
+    expect(tree[:children][0][:value]).to eq(2)
+    expect(tree[:children][1][:children][0][:value]).to eq(4)
+  end
+
+  it "validates linked lists" do
+    list_node = Class.new(Raggio::Schema::Base) do
+      struct({
+        value: string,
+        next: nullable(lazy(self))
+      })
+    end
+
+    list = list_node.decode({
+      value: "first",
+      next: {
+        value: "second",
+        next: {
+          value: "third",
+          next: nil
+        }
+      }
+    })
+
+    expect(list[:value]).to eq("first")
+    expect(list[:next][:value]).to eq("second")
+    expect(list[:next][:next][:value]).to eq("third")
+    expect(list[:next][:next][:next]).to be_nil
+  end
+
+  it "validates category hierarchies" do
+    category = Class.new(Raggio::Schema::Base) do
+      struct({
+        name: string,
+        subcategories: optional(array(lazy(self)))
+      })
+    end
+
+    data = category.decode({
+      name: "Electronics",
+      subcategories: [
+        {name: "Phones"},
+        {
+          name: "Computers",
+          subcategories: [
+            {name: "Laptops"},
+            {name: "Desktops"}
+          ]
+        }
+      ]
+    })
+
+    expect(data[:name]).to eq("Electronics")
+    expect(data[:subcategories].length).to eq(2)
+    expect(data[:subcategories][1][:subcategories].length).to eq(2)
+    expect(data[:subcategories][1][:subcategories][0][:name]).to eq("Laptops")
+  end
+
+  it "validates expression trees" do
+    expr = Class.new(Raggio::Schema::Base) do
+      union(
+        struct({type: literal("literal"), value: number}),
+        struct({
+          type: literal("binary"),
+          left: lazy(self),
+          op: literal("+", "-", "*", "/"),
+          right: lazy(self)
+        })
+      )
+    end
+
+    ast = expr.decode({
+      type: "binary",
+      left: {type: "literal", value: 5},
+      op: "+",
+      right: {
+        type: "binary",
+        left: {type: "literal", value: 3},
+        op: "*",
+        right: {type: "literal", value: 2}
+      }
+    })
+
+    expect(ast[:type]).to eq("binary")
+    expect(ast[:left][:value]).to eq(5)
+    expect(ast[:right][:op]).to eq("*")
+  end
+
+  it "encodes recursive structures" do
+    tree_node = Class.new(Raggio::Schema::Base) do
+      struct({
+        value: number,
+        children: array(lazy(self))
+      })
+    end
+
+    tree = {
+      value: 1,
+      children: [
+        {value: 2, children: []}
+      ]
+    }
+
+    encoded = tree_node.encode(tree)
+    expect(encoded[:value]).to eq(1)
+    expect(encoded[:children][0][:value]).to eq(2)
+  end
+end
+
+describe "Default Values" do
+  it "applies defaults for missing optional fields" do
+    config = Class.new(Raggio::Schema::Base) do
+      struct({
+        name: string,
+        port: optional(number, 3000),
+        host: optional(string, "localhost")
+      })
+    end
+
+    result = config.decode({name: "myapp"})
+    expect(result[:name]).to eq("myapp")
+    expect(result[:port]).to eq(3000)
+    expect(result[:host]).to eq("localhost")
+  end
+
+  it "uses provided values over defaults" do
+    config = Class.new(Raggio::Schema::Base) do
+      struct({
+        name: string,
+        port: optional(number, 3000)
+      })
+    end
+
+    result = config.decode({name: "myapp", port: 8080})
+    expect(result[:name]).to eq("myapp")
+    expect(result[:port]).to eq(8080)
+  end
+
+  it "applies defaults for complex types" do
+    config = Class.new(Raggio::Schema::Base) do
+      struct({
+        name: string,
+        tags: optional(array(string), []),
+        debug: optional(boolean, false)
+      })
+    end
+
+    result = config.decode({name: "myapp"})
+    expect(result[:name]).to eq("myapp")
+    expect(result[:tags]).to eq([])
+    expect(result[:debug]).to eq(false)
+  end
+
+  it "validates default values at schema definition time" do
+    expect {
+      Class.new(Raggio::Schema::Base) do
+        struct({
+          port: optional(number(min: 10), 5)
+        })
+      end
+    }.to raise_error(ArgumentError, /Invalid default value/)
+  end
+
+  it "allows valid defaults that satisfy constraints" do
+    config = Class.new(Raggio::Schema::Base) do
+      struct({
+        port: optional(number(min: 1, max: 65535), 3000)
+      })
+    end
+
+    result = config.decode({})
+    expect(result[:port]).to eq(3000)
+  end
+
+  it "works with optional fields without defaults" do
+    config = Class.new(Raggio::Schema::Base) do
+      struct({
+        name: string,
+        port: optional(number, 3000),
+        description: optional(string)
+      })
+    end
+
+    result = config.decode({name: "myapp"})
+    expect(result[:name]).to eq("myapp")
+    expect(result[:port]).to eq(3000)
+    expect(result.key?(:description)).to eq(false)
+  end
+
+  it "applies defaults for nested structs" do
+    config = Class.new(Raggio::Schema::Base) do
+      struct({
+        name: string,
+        server: optional(struct({
+          host: string,
+          port: number
+        }), {host: "localhost", port: 3000})
+      })
+    end
+
+    result = config.decode({name: "myapp"})
+    expect(result[:name]).to eq("myapp")
+    expect(result[:server][:host]).to eq("localhost")
+    expect(result[:server][:port]).to eq(3000)
+  end
+end

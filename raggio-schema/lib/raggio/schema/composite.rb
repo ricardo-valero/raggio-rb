@@ -98,9 +98,16 @@ module Raggio
 
           has_key = value.key?(key) || value.key?(key.to_s)
 
-          raise ValidationError, "Field '#{key}' is required" if !has_key && !is_optional_field
-
-          next if !has_key && is_optional_field
+          if !has_key
+            if is_optional_field
+              if field_type.has_default?
+                result[key] = field_type.default_value
+              end
+              next
+            else
+              raise ValidationError, "Field '#{key}' is required"
+            end
+          end
 
           field_value = value.key?(key) ? value[key] : value[key.to_s]
 

@@ -19,10 +19,26 @@ module Raggio
     end
 
     class OptionalField
-      attr_reader :type
+      attr_reader :type, :default_value
 
-      def initialize(type)
+      def initialize(type, default_value = nil)
         @type = type
+        @default_value = default_value
+        @has_default = !default_value.nil?
+        validate_default! if @has_default
+      end
+
+      def has_default?
+        @has_default
+      end
+
+      private
+
+      def validate_default!
+        actual_type = (@type.is_a?(Class) && @type < Raggio::Schema::Base) ? @type.schema_type : @type
+        actual_type.decode(@default_value)
+      rescue ValidationError => e
+        raise ArgumentError, "Invalid default value: #{e.message}"
       end
     end
 
@@ -47,6 +63,30 @@ module Raggio
 
         encoded = encode_fn.call(value)
         from_type.encode(encoded)
+      end
+    end
+
+    class LazyType < Type
+      attr_reader :schema_class
+
+      def initialize(schema_class)
+        super()
+        @schema_class = schema_class
+        @resolved = nil
+      end
+
+      def resolve
+        @resolved ||= (@schema_class.is_a?(Class) && @schema_class < Raggio::Schema::Base) ?
+            @schema_class.schema_type :
+            @schema_class
+      end
+
+      def decode(value)
+        resolve.decode(value)
+      end
+
+      def encode(value)
+        resolve.encode(value)
       end
     end
 
