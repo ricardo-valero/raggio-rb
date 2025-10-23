@@ -1066,3 +1066,147 @@ describe "Default Values" do
     expect(result[:server][:port]).to eq(3000)
   end
 end
+
+describe "Discriminated Union" do
+  it "validates based on discriminator field" do
+    shape = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:type,
+        circle: struct({type: literal("circle"), radius: number}),
+        square: struct({type: literal("square"), side_length: number})
+      )
+    end
+
+    circle = shape.decode({type: "circle", radius: 10})
+    expect(circle[:type]).to eq("circle")
+    expect(circle[:radius]).to eq(10)
+
+    square = shape.decode({type: "square", side_length: 5})
+    expect(square[:type]).to eq("square")
+    expect(square[:side_length]).to eq(5)
+  end
+
+  it "rejects unknown discriminator values" do
+    shape = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:type,
+        circle: struct({type: literal("circle"), radius: number}),
+        square: struct({type: literal("square"), side_length: number})
+      )
+    end
+
+    expect { shape.decode({type: "triangle", base: 5}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Unknown discriminator value 'triangle'/
+    )
+  end
+
+  it "rejects missing discriminator field" do
+    shape = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:type,
+        circle: struct({type: literal("circle"), radius: number})
+      )
+    end
+
+    expect { shape.decode({radius: 10}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Missing discriminator field 'type'/
+    )
+  end
+
+  it "works with symbol discriminator keys" do
+    shape = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:type,
+        circle: struct({type: literal("circle"), radius: number}),
+        square: struct({type: literal("square"), side_length: number})
+      )
+    end
+
+    result = shape.decode({type: "circle", radius: 15})
+    expect(result[:type]).to eq("circle")
+    expect(result[:radius]).to eq(15)
+  end
+
+  it "validates variant-specific fields" do
+    shape = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:type,
+        circle: struct({type: literal("circle"), radius: number(min: 0)}),
+        square: struct({type: literal("square"), side_length: number(min: 0)})
+      )
+    end
+
+    expect { shape.decode({type: "circle", radius: -5}) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Number must be at least 0/
+    )
+  end
+
+  it "works with API response pattern" do
+    api_response = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:status,
+        success: struct({status: literal("success"), data: record(key: string, value: string)}),
+        error: struct({status: literal("error"), code: number, message: string})
+      )
+    end
+
+    success = api_response.decode({status: "success", data: {"key" => "value"}})
+    expect(success[:status]).to eq("success")
+    expect(success[:data]).to eq({"key" => "value"})
+
+    error = api_response.decode({status: "error", code: 404, message: "Not found"})
+    expect(error[:status]).to eq("error")
+    expect(error[:code]).to eq(404)
+    expect(error[:message]).to eq("Not found")
+  end
+
+  it "encodes discriminated unions correctly" do
+    shape = Class.new(Raggio::Schema::Base) do
+      discriminated_union(:type,
+        circle: struct({type: literal("circle"), radius: number}),
+        square: struct({type: literal("square"), side_length: number})
+      )
+    end
+
+    encoded = shape.encode({type: "circle", radius: 10})
+    expect(encoded[:type]).to eq("circle")
+    expect(encoded[:radius]).to eq(10)
+  end
+
+  it "validates that variants are struct types" do
+    expect {
+      Class.new(Raggio::Schema::Base) do
+        discriminated_union(:type,
+          circle: string
+        )
+      end
+    }.to raise_error(ArgumentError, /must be a struct type/)
+  end
+
+  it "validates that variants include discriminator field" do
+    expect {
+      Class.new(Raggio::Schema::Base) do
+        discriminated_union(:kind,
+          circle: struct({type: literal("circle"), radius: number})
+        )
+      end
+    }.to raise_error(ArgumentError, /must include discriminator field/)
+  end
+
+  it "validates that discriminator field is a literal" do
+    expect {
+      Class.new(Raggio::Schema::Base) do
+        discriminated_union(:type,
+          circle: struct({type: string, radius: number})
+        )
+      end
+    }.to raise_error(ArgumentError, /must be a literal type/)
+  end
+
+  it "validates that literal matches variant key" do
+    expect {
+      Class.new(Raggio::Schema::Base) do
+        discriminated_union(:type,
+          circle: struct({type: literal("square"), radius: number})
+        )
+      end
+    }.to raise_error(ArgumentError, /must include literal value 'circle'/)
+  end
+end

@@ -70,6 +70,86 @@ module Raggio
       end
     end
 
+    class DiscriminatedUnionType < Type
+      attr_reader :discriminator, :variants
+
+      def initialize(discriminator, variants)
+        super()
+        @discriminator = discriminator
+        @variants = variants
+        validate_variants!
+      end
+
+      def decode(value)
+        raise ValidationError, "Expected hash, got #{value.class}" unless value.is_a?(Hash)
+
+        discriminator_value = value[@discriminator] || value[@discriminator.to_s]
+
+        unless discriminator_value
+          raise ValidationError, "Missing discriminator field '#{@discriminator}'"
+        end
+
+        variant_key = discriminator_value.to_sym
+
+        unless @variants.key?(variant_key)
+          valid_keys = @variants.keys.map(&:to_s).join(", ")
+          raise ValidationError, "Unknown discriminator value '#{discriminator_value}'. Valid values: #{valid_keys}"
+        end
+
+        variant_type = @variants[variant_key]
+        variant_type = variant_type.schema_type if variant_type.is_a?(Class) && variant_type < Raggio::Schema::Base
+
+        variant_type.decode(value)
+      end
+
+      def encode(value)
+        return nil if value.nil?
+
+        discriminator_value = value[@discriminator] || value[@discriminator.to_s]
+
+        unless discriminator_value
+          raise ValidationError, "Missing discriminator field '#{@discriminator}'"
+        end
+
+        variant_key = discriminator_value.to_sym
+
+        unless @variants.key?(variant_key)
+          raise ValidationError, "Unknown discriminator value '#{discriminator_value}'"
+        end
+
+        variant_type = @variants[variant_key]
+        variant_type = variant_type.schema_type if variant_type.is_a?(Class) && variant_type < Raggio::Schema::Base
+
+        variant_type.encode(value)
+      end
+
+      private
+
+      def validate_variants!
+        @variants.each do |key, variant|
+          variant_type = variant.is_a?(Class) && variant < Raggio::Schema::Base ? variant.schema_type : variant
+
+          unless variant_type.is_a?(StructType)
+            raise ArgumentError, "Discriminated union variant '#{key}' must be a struct type"
+          end
+
+          unless variant_type.fields.key?(@discriminator)
+            raise ArgumentError, "Discriminated union variant '#{key}' must include discriminator field '#{@discriminator}'"
+          end
+
+          discriminator_field_type = variant_type.fields[@discriminator]
+
+          unless discriminator_field_type.is_a?(LiteralType)
+            raise ArgumentError, "Discriminator field '#{@discriminator}' in variant '#{key}' must be a literal type"
+          end
+
+          unless discriminator_field_type.values.include?(key.to_s)
+            raise ArgumentError, "Discriminator field '#{@discriminator}' in variant '#{key}' must include literal value '#{key}'"
+          end
+        end
+      end
+    end
+
     class StructType < Type
       attr_reader :fields
 

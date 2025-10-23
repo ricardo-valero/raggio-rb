@@ -44,6 +44,10 @@ module Raggio
           @schema_type = UnionType.new(*members)
         end
 
+        def discriminated_union(discriminator, **variants)
+          @schema_type = DiscriminatedUnionType.new(discriminator, variants)
+        end
+
         def struct(fields, **constraints)
           @schema_type = StructType.new(fields, **constraints)
         end
