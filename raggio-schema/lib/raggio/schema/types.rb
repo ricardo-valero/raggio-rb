@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Raggio
   module Schema
     class Type
@@ -24,6 +26,7 @@ module Raggio
       def decode(value)
         return nil if value.nil? && @optional
         raise ValidationError, "Value cannot be nil" if value.nil?
+
         validate(value)
         value
       end
@@ -41,13 +44,9 @@ module Raggio
           raise ValidationError, "String length must be at most #{constraints[:max]}"
         end
 
-        if constraints[:in] && !constraints[:in].include?(value)
-          raise ValidationError, "String must be one of #{constraints[:in].inspect}"
-        end
+        return unless constraints[:format] && !constraints[:format].match?(value)
 
-        if constraints[:format] && !constraints[:format].match?(value)
-          raise ValidationError, "String must match format #{constraints[:format].inspect}"
-        end
+        raise ValidationError, "String must match format #{constraints[:format].inspect}"
       end
     end
 
@@ -67,17 +66,17 @@ module Raggio
           raise ValidationError, "Number must be at least #{constraints[:min]}"
         end
 
-        if constraints[:max] && value > constraints[:max]
-          raise ValidationError, "Number must be at most #{constraints[:max]}"
-        end
+        return unless constraints[:max] && value > constraints[:max]
+
+        raise ValidationError, "Number must be at most #{constraints[:max]}"
       end
     end
 
     class BooleanType < Type
       def validate(value)
-        unless value.is_a?(TrueClass) || value.is_a?(FalseClass)
-          raise ValidationError, "Expected boolean, got #{value.class}"
-        end
+        return if value.is_a?(TrueClass) || value.is_a?(FalseClass)
+
+        raise ValidationError, "Expected boolean, got #{value.class}"
       end
     end
 
@@ -90,9 +89,73 @@ module Raggio
       end
 
       def validate(value)
-        unless @values.include?(value)
-          raise ValidationError, "Expected one of #{@values.inspect}, got #{value.inspect}"
+        return if @values.include?(value)
+
+        raise ValidationError, "Expected one of #{@values.inspect}, got #{value.inspect}"
+      end
+    end
+
+    class UnionType < Type
+      attr_reader :members
+
+      def initialize(*members)
+        super()
+        @members = members
+      end
+
+      def validate(value)
+        errors = []
+        valid = @members.any? do |member|
+          if member.is_a?(Class) && member < Raggio::Schema::Base
+            member.schema_type.validate(value)
+          else
+            member.validate(value)
+          end
+          true
+        rescue ValidationError => e
+          errors << e.message
+          false
         end
+
+        return if valid
+
+        raise ValidationError, "Union validation failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+      end
+
+      def decode(value)
+        return nil if value.nil? && @optional
+        raise ValidationError, "Value cannot be nil" if value.nil?
+
+        errors = []
+
+        @members.each do |member|
+          return member.decode(value) if member.is_a?(Class) && member < Raggio::Schema::Base
+
+          return member.decode(value)
+        rescue ValidationError => e
+          errors << e.message
+        end
+
+        raise ValidationError, "Union decoding failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
+      end
+
+      def encode(value)
+        return nil if value.nil?
+
+        errors = []
+
+        @members.each do |member|
+          if member.is_a?(Class) && member < Raggio::Schema::Base
+            member.schema_type.validate(value)
+          else
+            member.validate(value)
+          end
+          return member.encode(value)
+        rescue ValidationError => e
+          errors << e.message
+        end
+
+        raise ValidationError, "Union encoding failed:\n#{errors.map { |e| "  - #{e}" }.join("\n")}"
       end
     end
 
@@ -114,9 +177,7 @@ module Raggio
           field_keys = fields.keys.map(&:to_sym)
           extra_keys = value_keys - field_keys
 
-          if extra_keys.any?
-            raise ValidationError, "Unexpected keys: #{extra_keys.inspect}"
-          end
+          raise ValidationError, "Unexpected keys: #{extra_keys.inspect}" if extra_keys.any?
         end
 
         fields.each do |key, type|
@@ -124,9 +185,7 @@ module Raggio
 
           is_optional_field = (type.is_a?(Type) && type.optional) || false
 
-          if field_value.nil? && !is_optional_field
-            raise ValidationError, "Field '#{key}' is required"
-          end
+          raise ValidationError, "Field '#{key}' is required" if field_value.nil? && !is_optional_field
 
           next if field_value.nil? && is_optional_field
 
@@ -151,10 +210,8 @@ module Raggio
           field_value = value.key?(key) ? value[key] : value[key.to_s]
 
           if type.is_a?(Class) && type < Raggio::Schema::Base
-            result[key] = type.decode(field_value)
-          else
-            result[key] = type.decode(field_value)
           end
+          result[key] = type.decode(field_value)
         end
 
         if extra_keys_mode == :include
@@ -178,10 +235,8 @@ module Raggio
           field_value = value.key?(key) ? value[key] : value[key.to_s]
 
           if type.is_a?(Class) && type < Raggio::Schema::Base
-            result[key] = type.encode(field_value)
-          else
-            result[key] = type.encode(field_value)
           end
+          result[key] = type.encode(field_value)
         end
         result
       end
@@ -210,20 +265,16 @@ module Raggio
           raise ValidationError, "Array length must be exactly #{constraints[:length]}"
         end
 
-        if constraints[:unique] && value.length != value.uniq.length
-          raise ValidationError, "Array items must be unique"
-        end
+        raise ValidationError, "Array items must be unique" if constraints[:unique] && value.length != value.uniq.length
 
         value.each_with_index do |item, index|
-          begin
-            if type.is_a?(Class) && type < Raggio::Schema::Base
-              type.schema_type.validate(item)
-            else
-              type.validate(item)
-            end
-          rescue ValidationError => e
-            raise ValidationError, "Array item at index #{index}: #{e.message}"
+          if type.is_a?(Class) && type < Raggio::Schema::Base
+            type.schema_type.validate(item)
+          else
+            type.validate(item)
           end
+        rescue ValidationError => e
+          raise ValidationError, "Array item at index #{index}: #{e.message}"
         end
       end
 
@@ -235,10 +286,8 @@ module Raggio
 
         value.map do |item|
           if type.is_a?(Class) && type < Raggio::Schema::Base
-            type.decode(item)
-          else
-            type.decode(item)
           end
+          type.decode(item)
         end
       end
 
@@ -247,10 +296,8 @@ module Raggio
 
         value.map do |item|
           if type.is_a?(Class) && type < Raggio::Schema::Base
-            type.encode(item)
-          else
-            type.encode(item)
           end
+          type.encode(item)
         end
       end
     end

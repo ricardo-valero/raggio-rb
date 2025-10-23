@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Raggio
   module Schema
     class Base
@@ -22,7 +24,12 @@ module Raggio
         end
 
         def literal(*values)
+          values = values.first if values.length == 1 && values.first.is_a?(Array)
           @schema_type = LiteralType.new(*values)
+        end
+
+        def union(*members)
+          @schema_type = UnionType.new(*members)
         end
 
         def struct(fields, **constraints)
@@ -44,11 +51,13 @@ module Raggio
 
         def decode(value)
           raise "Schema not defined" unless @schema_type
+
           @schema_type.decode(value)
         end
 
         def encode(value)
           raise "Schema not defined" unless @schema_type
+
           @schema_type.encode(value)
         end
       end
