@@ -1072,8 +1072,7 @@ describe "Discriminated Union" do
     shape = Class.new(Raggio::Schema::Base) do
       discriminated_union(:type,
         circle: struct({type: literal("circle"), radius: number}),
-        square: struct({type: literal("square"), side_length: number})
-      )
+        square: struct({type: literal("square"), side_length: number}))
     end
 
     circle = shape.decode({type: "circle", radius: 10})
@@ -1089,8 +1088,7 @@ describe "Discriminated Union" do
     shape = Class.new(Raggio::Schema::Base) do
       discriminated_union(:type,
         circle: struct({type: literal("circle"), radius: number}),
-        square: struct({type: literal("square"), side_length: number})
-      )
+        square: struct({type: literal("square"), side_length: number}))
     end
 
     expect { shape.decode({type: "triangle", base: 5}) }.to raise_error(
@@ -1102,8 +1100,7 @@ describe "Discriminated Union" do
   it "rejects missing discriminator field" do
     shape = Class.new(Raggio::Schema::Base) do
       discriminated_union(:type,
-        circle: struct({type: literal("circle"), radius: number})
-      )
+        circle: struct({type: literal("circle"), radius: number}))
     end
 
     expect { shape.decode({radius: 10}) }.to raise_error(
@@ -1116,8 +1113,7 @@ describe "Discriminated Union" do
     shape = Class.new(Raggio::Schema::Base) do
       discriminated_union(:type,
         circle: struct({type: literal("circle"), radius: number}),
-        square: struct({type: literal("square"), side_length: number})
-      )
+        square: struct({type: literal("square"), side_length: number}))
     end
 
     result = shape.decode({type: "circle", radius: 15})
@@ -1129,8 +1125,7 @@ describe "Discriminated Union" do
     shape = Class.new(Raggio::Schema::Base) do
       discriminated_union(:type,
         circle: struct({type: literal("circle"), radius: number(min: 0)}),
-        square: struct({type: literal("square"), side_length: number(min: 0)})
-      )
+        square: struct({type: literal("square"), side_length: number(min: 0)}))
     end
 
     expect { shape.decode({type: "circle", radius: -5}) }.to raise_error(
@@ -1143,8 +1138,7 @@ describe "Discriminated Union" do
     api_response = Class.new(Raggio::Schema::Base) do
       discriminated_union(:status,
         success: struct({status: literal("success"), data: record(key: string, value: string)}),
-        error: struct({status: literal("error"), code: number, message: string})
-      )
+        error: struct({status: literal("error"), code: number, message: string}))
     end
 
     success = api_response.decode({status: "success", data: {"key" => "value"}})
@@ -1161,8 +1155,7 @@ describe "Discriminated Union" do
     shape = Class.new(Raggio::Schema::Base) do
       discriminated_union(:type,
         circle: struct({type: literal("circle"), radius: number}),
-        square: struct({type: literal("square"), side_length: number})
-      )
+        square: struct({type: literal("square"), side_length: number}))
     end
 
     encoded = shape.encode({type: "circle", radius: 10})
@@ -1174,8 +1167,7 @@ describe "Discriminated Union" do
     expect {
       Class.new(Raggio::Schema::Base) do
         discriminated_union(:type,
-          circle: string
-        )
+          circle: string)
       end
     }.to raise_error(ArgumentError, /must be a struct type/)
   end
@@ -1184,8 +1176,7 @@ describe "Discriminated Union" do
     expect {
       Class.new(Raggio::Schema::Base) do
         discriminated_union(:kind,
-          circle: struct({type: literal("circle"), radius: number})
-        )
+          circle: struct({type: literal("circle"), radius: number}))
       end
     }.to raise_error(ArgumentError, /must include discriminator field/)
   end
@@ -1194,8 +1185,7 @@ describe "Discriminated Union" do
     expect {
       Class.new(Raggio::Schema::Base) do
         discriminated_union(:type,
-          circle: struct({type: string, radius: number})
-        )
+          circle: struct({type: string, radius: number}))
       end
     }.to raise_error(ArgumentError, /must be a literal type/)
   end
@@ -1204,8 +1194,7 @@ describe "Discriminated Union" do
     expect {
       Class.new(Raggio::Schema::Base) do
         discriminated_union(:type,
-          circle: struct({type: literal("square"), radius: number})
-        )
+          circle: struct({type: literal("square"), radius: number}))
       end
     }.to raise_error(ArgumentError, /must include literal value 'circle'/)
   end

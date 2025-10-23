@@ -127,7 +127,7 @@ module Raggio
 
       def validate_variants!
         @variants.each do |key, variant|
-          variant_type = variant.is_a?(Class) && variant < Raggio::Schema::Base ? variant.schema_type : variant
+          variant_type = (variant.is_a?(Class) && variant < Raggio::Schema::Base) ? variant.schema_type : variant
 
           unless variant_type.is_a?(StructType)
             raise ArgumentError, "Discriminated union variant '#{key}' must be a struct type"
@@ -143,7 +143,7 @@ module Raggio
             raise ArgumentError, "Discriminator field '#{@discriminator}' in variant '#{key}' must be a literal type"
           end
 
-          unless discriminator_field_type.values.include?(key.to_s)
+          unless discriminator_field_type.values.any? { |v| v == key.to_s }
             raise ArgumentError, "Discriminator field '#{@discriminator}' in variant '#{key}' must include literal value '#{key}'"
           end
         end
