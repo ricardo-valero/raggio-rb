@@ -81,6 +81,21 @@ module Raggio
       end
     end
 
+    class LiteralType < Type
+      attr_reader :values
+
+      def initialize(*values)
+        super()
+        @values = values
+      end
+
+      def validate(value)
+        unless @values.include?(value)
+          raise ValidationError, "Expected one of #{@values.inspect}, got #{value.inspect}"
+        end
+      end
+    end
+
     class StructType < Type
       attr_reader :fields
 

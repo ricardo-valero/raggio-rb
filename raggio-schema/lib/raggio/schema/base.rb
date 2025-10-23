@@ -21,6 +21,10 @@ module Raggio
           @schema_type = BooleanType.new
         end
 
+        def literal(*values)
+          @schema_type = LiteralType.new(*values)
+        end
+
         def struct(fields, **constraints)
           @schema_type = StructType.new(fields, **constraints)
         end
