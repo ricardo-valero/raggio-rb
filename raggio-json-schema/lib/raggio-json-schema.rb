@@ -4,7 +4,6 @@ require "raggio-schema"
 require_relative "raggio/json_schema/version"
 require_relative "raggio/json_schema/schema"
 require_relative "raggio/json_schema/codec"
-require_relative "raggio/json_schema/generator"
 
 module Raggio
   module JsonSchema
