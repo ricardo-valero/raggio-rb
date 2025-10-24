@@ -9,8 +9,8 @@ module Raggio
         discriminated_union(:type,
           string: struct({
             type: literal("string"),
-            minLength: optional(number(min: 0)),
-            maxLength: optional(number(min: 0)),
+            minLength: optional(integer(min: 0)),
+            maxLength: optional(integer(min: 0)),
             pattern: optional(string),
             format: optional(literal(
               "date-time", "date", "time", "duration",
@@ -54,8 +54,8 @@ module Raggio
           array: struct({
             type: literal("array"),
             items: optional(lazy(Schema)),
-            minItems: optional(number(min: 0)),
-            maxItems: optional(number(min: 0)),
+            minItems: optional(integer(min: 0)),
+            maxItems: optional(integer(min: 0)),
             uniqueItems: optional(boolean)
           }),
 
