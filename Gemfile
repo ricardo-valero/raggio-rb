@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-%w[raggio raggio-schema].each do |lib|
+%w[raggio raggio-schema raggio-json-schema].each do |lib|
   gem lib, path: File.expand_path("../#{lib}", __FILE__)
 end
 

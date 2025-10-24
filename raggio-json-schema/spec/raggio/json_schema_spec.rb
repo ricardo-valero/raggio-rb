@@ -35,8 +35,8 @@ RSpec.describe Raggio::JsonSchema::Schema do
     schema = {
       type: "object",
       properties: {
-        name: { type: "string" },
-        age: { type: "integer", minimum: 0 }
+        name: {type: "string"},
+        age: {type: "integer", minimum: 0}
       },
       required: ["name"]
     }
@@ -51,7 +51,7 @@ RSpec.describe Raggio::JsonSchema::Schema do
   it "validates an array schema" do
     schema = {
       type: "array",
-      items: { type: "string" },
+      items: {type: "string"},
       minItems: 1,
       uniqueItems: true
     }
@@ -84,8 +84,8 @@ RSpec.describe Raggio::JsonSchema::Schema do
   it "validates oneOf schema" do
     schema = {
       oneOf: [
-        { type: "string" },
-        { type: "number" }
+        {type: "string"},
+        {type: "number"}
       ]
     }
 
@@ -101,7 +101,7 @@ RSpec.describe Raggio::JsonSchema::Schema do
     }
 
     result = Raggio::JsonSchema::Schema.decode(schema)
-    expect(result[:"$ref"]).to eq("#/$defs/address")
+    expect(result[:$ref]).to eq("#/$defs/address")
   end
 
   it "validates nested object schema" do
@@ -111,8 +111,8 @@ RSpec.describe Raggio::JsonSchema::Schema do
         address: {
           type: "object",
           properties: {
-            street: { type: "string" },
-            city: { type: "string" }
+            street: {type: "string"},
+            city: {type: "string"}
           },
           required: ["street", "city"]
         }
@@ -145,7 +145,7 @@ RSpec.describe Raggio::JsonSchema::Schema do
         },
         tags: {
           type: "array",
-          items: { type: "string" },
+          items: {type: "string"},
           minItems: 1,
           uniqueItems: true
         },

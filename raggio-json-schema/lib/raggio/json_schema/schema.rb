@@ -64,33 +64,25 @@ module Raggio
             properties: optional(record(key: string, value: lazy(Schema))),
             required: optional(array(string)),
             additionalProperties: optional(union(boolean, lazy(Schema)))
-          })
-        ),
-
+          })),
         struct({
           enum: array(union(string, number, boolean, null))
         }),
-
         struct({
           const: union(string, number, boolean, null)
         }),
-
         struct({
           anyOf: array(lazy(Schema))
         }),
-
         struct({
           oneOf: array(lazy(Schema))
         }),
-
         struct({
           allOf: array(lazy(Schema))
         }),
-
         struct({
           not: lazy(Schema)
         }),
-
         struct({
           "$ref": string
         })

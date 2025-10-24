@@ -3,7 +3,7 @@
 require "bundler"
 require "rspec/core/rake_task"
 
-GEMS = %w[raggio raggio-schema].freeze
+GEMS = %w[raggio raggio-schema raggio-json-schema].freeze
 
 def for_each_gem(&block)
   GEMS.each do |gem|
