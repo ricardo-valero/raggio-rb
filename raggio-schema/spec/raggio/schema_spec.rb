@@ -1199,3 +1199,106 @@ describe "Discriminated Union" do
     }.to raise_error(ArgumentError, /must include literal value 'circle'/)
   end
 end
+
+describe "Integer" do
+  it "validates integers" do
+    int_schema = Class.new(Raggio::Schema::Base) do
+      integer
+    end
+
+    expect(int_schema.decode(42)).to eq(42)
+    expect(int_schema.decode(0)).to eq(0)
+    expect(int_schema.decode(-100)).to eq(-100)
+  end
+
+  it "rejects floats" do
+    int_schema = Class.new(Raggio::Schema::Base) do
+      integer
+    end
+
+    expect { int_schema.decode(42.5) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected integer/
+    )
+  end
+
+  it "rejects non-numeric values" do
+    int_schema = Class.new(Raggio::Schema::Base) do
+      integer
+    end
+
+    expect { int_schema.decode("42") }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /Expected integer/
+    )
+  end
+
+  it "validates integer with min constraint" do
+    int_schema = Class.new(Raggio::Schema::Base) do
+      integer(min: 0)
+    end
+
+    expect(int_schema.decode(0)).to eq(0)
+    expect(int_schema.decode(100)).to eq(100)
+
+    expect { int_schema.decode(-1) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /must be at least 0/
+    )
+  end
+
+  it "validates integer with max constraint" do
+    int_schema = Class.new(Raggio::Schema::Base) do
+      integer(max: 100)
+    end
+
+    expect(int_schema.decode(100)).to eq(100)
+    expect(int_schema.decode(0)).to eq(0)
+
+    expect { int_schema.decode(101) }.to raise_error(
+      Raggio::Schema::ValidationError,
+      /must be at most 100/
+    )
+  end
+
+  it "validates integer with min and max constraints" do
+    age_schema = Class.new(Raggio::Schema::Base) do
+      integer(min: 0, max: 150)
+    end
+
+    expect(age_schema.decode(0)).to eq(0)
+    expect(age_schema.decode(25)).to eq(25)
+    expect(age_schema.decode(150)).to eq(150)
+
+    expect { age_schema.decode(-1) }.to raise_error(Raggio::Schema::ValidationError)
+    expect { age_schema.decode(151) }.to raise_error(Raggio::Schema::ValidationError)
+  end
+
+  it "works in structs" do
+    user_schema = Class.new(Raggio::Schema::Base) do
+      struct({
+        id: integer(min: 1),
+        age: integer(min: 0, max: 150),
+        score: number
+      })
+    end
+
+    result = user_schema.decode({
+      id: 1,
+      age: 25,
+      score: 95.5
+    })
+
+    expect(result[:id]).to eq(1)
+    expect(result[:age]).to eq(25)
+    expect(result[:score]).to eq(95.5)
+
+    expect do
+      user_schema.decode({
+        id: 1,
+        age: 25.5,
+        score: 95
+      })
+    end.to raise_error(Raggio::Schema::ValidationError, /Expected integer/)
+  end
+end

@@ -23,6 +23,10 @@ module Raggio
           @schema_type = NumberType.new(**constraints)
         end
 
+        def integer(**constraints)
+          @schema_type = IntegerType.new(**constraints)
+        end
+
         def boolean
           @schema_type = BooleanType.new
         end

@@ -26,6 +26,14 @@ module Raggio
       def decode(value)
         raise ValidationError, "Expected number, got #{value.class}" unless value.is_a?(Numeric)
 
+        validate_constraints(value)
+
+        value
+      end
+
+      private
+
+      def validate_constraints(value)
         if constraints[:greater_than] && value <= constraints[:greater_than]
           raise ValidationError, "Number must be greater than #{constraints[:greater_than]}"
         end
@@ -41,6 +49,14 @@ module Raggio
         if constraints[:max] && value > constraints[:max]
           raise ValidationError, "Number must be at most #{constraints[:max]}"
         end
+      end
+    end
+
+    class IntegerType < NumberType
+      def decode(value)
+        raise ValidationError, "Expected integer, got #{value.class}" unless value.is_a?(Integer)
+
+        validate_constraints(value)
 
         value
       end
